@@ -42,7 +42,7 @@ def last_commit():
         return None
 
 
-def modified_files(root, tracked_only=False, commit=None):
+def modified_files(root, tracked_only=False, commit=None, git_diff=None):
     """Returns a list of files that has been modified since the last commit.
 
     Args:
