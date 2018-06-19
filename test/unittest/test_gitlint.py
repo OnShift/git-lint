@@ -86,15 +86,15 @@ class GitLintTest(fake_filesystem_unittest.TestCase):
         self.git_modified_lines.reset_mock()
         self.lint.reset_mock()
 
-    def assert_mocked_calls(self, tracked_only=False, commit=None):
+    def assert_mocked_calls(self, tracked_only=False, commit=None, git_diff=None):
         """Checks if the mocks were called as expected.
 
         This method exists to avoid duplication.
         """
         self.git_modified_files.assert_called_once_with(
-            self.root, tracked_only=tracked_only, commit=commit)
+            self.root, tracked_only=tracked_only, commit=commit, git_diff=git_diff)
         self.git_modified_lines.assert_called_once_with(
-            self.filename, ' M', commit=commit)
+            self.filename, ' M', commits=[commit] if commit else None)
         self.lint.assert_called_once_with(self.filename, [3, 14], mock.ANY)
 
     def test_find_invalid_filenames(self):
@@ -133,7 +133,7 @@ class GitLintTest(fake_filesystem_unittest.TestCase):
         self.git_modified_files.return_value = {}
         self.assertEqual(0, gitlint.main([], stdout=None, stderr=None))
         self.git_modified_files.assert_called_once_with(
-            self.root, tracked_only=False, commit=None)
+            self.root, tracked_only=False, commit=None, git_diff=None)
 
     def test_main_file_changed_and_still_valid(self):
         lint_response = {self.filename: {'comments': []}}
@@ -315,7 +315,7 @@ class GitLintTest(fake_filesystem_unittest.TestCase):
         self.assertIn('line 3: error', self.stdout.getvalue())
 
         self.git_modified_files.assert_called_once_with(
-            self.root, tracked_only=False, commit=None)
+            self.root, tracked_only=False, commit=None, git_diff=None)
         self.lint.assert_called_once_with(self.filename, None, mock.ANY)
 
         self.reset_mock_calls()
@@ -327,7 +327,7 @@ class GitLintTest(fake_filesystem_unittest.TestCase):
         self.assertIn('line 3: error', self.stdout.getvalue())
 
         self.git_modified_files.assert_called_once_with(
-            self.root, tracked_only=False, commit=None)
+            self.root, tracked_only=False, commit=None, git_diff=None)
         self.lint.assert_called_once_with(self.filename, None, mock.ANY)
 
     def test_main_with_invalid_files(self):
@@ -365,10 +365,10 @@ class GitLintTest(fake_filesystem_unittest.TestCase):
                 os.path.basename(self.filename2), self.stdout.getvalue())
 
             self.git_modified_files.assert_called_once_with(
-                self.root, tracked_only=False, commit=None)
+                self.root, tracked_only=False, commit=None, git_diff=None)
             expected_calls = [
-                mock.call(self.filename, ' M', commit=None),
-                mock.call(self.filename2, None, commit=None),
+                mock.call(self.filename, ' M', commits=None),
+                mock.call(self.filename2, None, commits=None),
             ]
             self.assertEqual(expected_calls,
                              self.git_modified_lines.call_args_list)
@@ -400,10 +400,10 @@ class GitLintTest(fake_filesystem_unittest.TestCase):
             self.assertEqual('', self.stderr.getvalue())
 
             self.git_modified_files.assert_called_once_with(
-                self.root, tracked_only=False, commit=None)
+                self.root, tracked_only=False, commit=None, git_diff=None)
             expected_calls = [
-                mock.call(self.filename, ' M', commit=None),
-                mock.call(self.filename2, None, commit=None)
+                mock.call(self.filename, ' M', commits=None),
+                mock.call(self.filename2, None, commits=None)
             ]
             self.assertEqual(expected_calls,
                              self.git_modified_lines.call_args_list)

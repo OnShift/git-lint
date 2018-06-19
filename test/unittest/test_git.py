@@ -154,21 +154,21 @@ class GitTest(unittest.TestCase):
                 git.modified_lines(
                     '/home/user/repo/foo/bar.txt',
                     ' M',
-                    commit='0123456789abcdef31410123456789abcdef3141')))
+                    commits=['0123456789abcdef31410123456789abcdef3141'])))
         self.assertEqual(
             [2, 5],
             list(
                 git.modified_lines(
                     '/home/user/repo/foo/bar.txt',
                     'M ',
-                    commit='0123456789abcdef31410123456789abcdef3141')))
+                    commits=['0123456789abcdef31410123456789abcdef3141'])))
         self.assertEqual(
             [2, 5],
             list(
                 git.modified_lines(
                     '/home/user/repo/foo/bar.txt',
                     'MM',
-                    commit='0123456789abcdef31410123456789abcdef3141')))
+                    commits=['0123456789abcdef31410123456789abcdef3141'])))
         expected_calls = [
             mock.call(
                 ['git', 'blame', '--porcelain', '/home/user/repo/foo/bar.txt'])

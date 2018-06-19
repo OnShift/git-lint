@@ -50,7 +50,7 @@ def _remove_filename_quotes(filename):
     return filename
 
 
-def modified_files(root, tracked_only=False, commit=None):
+def modified_files(root, tracked_only=False, commit=None, git_diff=None):
     """Returns a list of files that has been modified since the last commit.
 
     Args:
@@ -67,6 +67,9 @@ def modified_files(root, tracked_only=False, commit=None):
 
     if commit:
         return _modified_files_with_commit(root, commit)
+
+    if git_diff:
+        return _modified_files_with_commit(root, git_diff)
 
     # Convert to unicode and split
     status_lines = subprocess.check_output([
@@ -90,10 +93,11 @@ def modified_files(root, tracked_only=False, commit=None):
 
 def _modified_files_with_commit(root, commit):
     # Convert to unicode and split
-    status_lines = subprocess.check_output([
-        'git', 'diff-tree', '-r', '--root', '--no-commit-id', '--name-status',
-        commit
-    ]).decode('utf-8').split(os.linesep)
+    command = ['git', 'diff-tree', '-r', '--root', '--no-commit-id', '--name-status']
+    command.extend(commit.split(' '))
+    status_lines = subprocess.check_output(
+        command
+    ).decode('utf-8').split(os.linesep)
 
     modified_file_status = utils.filter_lines(
         status_lines,
@@ -106,14 +110,14 @@ def _modified_files_with_commit(root, commit):
                  mode + ' ') for filename, mode in modified_file_status)
 
 
-def modified_lines(filename, extra_data, commit=None):
+def modified_lines(filename, extra_data, commits=None):
     """Returns the lines that have been modifed for this file.
 
     Args:
       filename: the file to check.
       extra_data: is the extra_data returned by modified_files. Additionally, a
         value of None means that the file was not modified.
-      commit: the complete sha1 (40 chars) of the commit. Note that specifying
+      commits: the complete sha1 (40 chars) of the commit. Note that specifying
         this value will only work (100%) when commit == last_commit (with
         respect to the currently checked out revision), otherwise, we could miss
         some lines.
@@ -126,15 +130,24 @@ def modified_lines(filename, extra_data, commit=None):
     if extra_data not in ('M ', ' M', 'MM'):
         return None
 
-    if commit is None:
-        commit = '0' * 40
-    commit = commit.encode('utf-8')
+    if commits is None:
+        commits = ['0' * 40]
+    # commit = commit.encode('utf-8')
 
     # Split as bytes, as the output may have some non unicode characters.
     blame_lines = subprocess.check_output(
         ['git', 'blame', '--porcelain', filename]).split(
             os.linesep.encode('utf-8'))
+    regex_pattern = r'^({}) (?P<line>\d+) (\d+)'.format('|'.join(commits)).encode('utf-8')
     modified_line_numbers = utils.filter_lines(
-        blame_lines, commit + br' (?P<line>\d+) (\d+)', groups=('line', ))
+        blame_lines, regex_pattern, groups=('line',))
 
     return list(map(int, modified_line_numbers))
+
+
+def commit_diff(git_diff):
+    command = ['git', 'rev-list']
+    command.extend(git_diff.split(' '))
+    return subprocess.check_output(
+        command
+    ).decode('utf-8').split(os.linesep)

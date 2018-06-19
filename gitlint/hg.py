@@ -79,7 +79,7 @@ def modified_files(root, tracked_only=False, commit=None):
                 for filename, mode in modified_file_status)
 
 
-def modified_lines(filename, extra_data, commit=None):
+def modified_lines(filename, extra_data, commits=None):
     """Returns the lines that have been modifed for this file.
 
     Args:
@@ -100,8 +100,11 @@ def modified_lines(filename, extra_data, commit=None):
         return None
 
     command = ['hg', 'diff', '-U', '0']
-    if commit:
-        command.append('--change=%s' % commit)
+    if commits:
+        assert len(commits) == 1, \
+            "git-lint does not support multiple commits for mercurial yet"
+
+        command.append('--change=%s' % commits[0])
     command.append(filename)
 
     # Split as bytes, as the output may have some non unicode characters.
