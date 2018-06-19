@@ -86,13 +86,19 @@ class GitLintTest(fake_filesystem_unittest.TestCase):
         self.git_modified_lines.reset_mock()
         self.lint.reset_mock()
 
-    def assert_mocked_calls(self, tracked_only=False, commit=None, git_diff=None):
+    def assert_mocked_calls(self,
+                            tracked_only=False,
+                            commit=None,
+                            git_diff=None):
         """Checks if the mocks were called as expected.
 
         This method exists to avoid duplication.
         """
         self.git_modified_files.assert_called_once_with(
-            self.root, tracked_only=tracked_only, commit=commit, git_diff=git_diff)
+            self.root,
+            tracked_only=tracked_only,
+            commit=commit,
+            git_diff=git_diff)
         self.git_modified_lines.assert_called_once_with(
             self.filename, ' M', commits=[commit] if commit else None)
         self.lint.assert_called_once_with(self.filename, [3, 14], mock.ANY)

@@ -94,11 +94,12 @@ def modified_files(root, tracked_only=False, commit=None, git_diff=None):
 
 def _modified_files_with_commit(root, commit):
     # Convert to unicode and split
-    command = ['git', 'diff-tree', '-r', '--root', '--no-commit-id', '--name-status']
+    command = [
+        'git', 'diff-tree', '-r', '--root', '--no-commit-id', '--name-status'
+    ]
     command.extend(commit.split(' '))
-    status_lines = subprocess.check_output(
-        command
-    ).decode('utf-8').split(os.linesep)
+    status_lines = subprocess.check_output(command).decode('utf-8').split(
+        os.linesep)
 
     modified_file_status = utils.filter_lines(
         status_lines,
@@ -139,9 +140,10 @@ def modified_lines(filename, extra_data, commits=None):
     blame_lines = subprocess.check_output(
         ['git', 'blame', '--porcelain', filename]).split(
             os.linesep.encode('utf-8'))
-    regex_pattern = r'^({}) (?P<line>\d+) (\d+)'.format('|'.join(commits)).encode('utf-8')
+    regex_pattern = r'^({}) (?P<line>\d+) (\d+)'.format(
+        '|'.join(commits)).encode('utf-8')
     modified_line_numbers = utils.filter_lines(
-        blame_lines, regex_pattern, groups=('line',))
+        blame_lines, regex_pattern, groups=('line', ))
 
     return list(map(int, modified_line_numbers))
 
@@ -156,6 +158,4 @@ def commit_diff(git_diff):
     """
     command = ['git', 'rev-list']
     command.extend(git_diff.split(' '))
-    return subprocess.check_output(
-        command
-    ).decode('utf-8').split(os.linesep)
+    return subprocess.check_output(command).decode('utf-8').split(os.linesep)
