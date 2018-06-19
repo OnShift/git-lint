@@ -202,7 +202,9 @@ class GitTest(unittest.TestCase):
 
     @mock.patch('subprocess.check_output')
     def test_commit_diff_simple_diff(self, check_output):
-        check_output.return_value = os.linesep.join(['abc123', '123abc'])
+        check_output.return_value = os.linesep.join(
+            ['abc123', '123abc']
+        ).encode('utf-8')
         resp = git.commit_diff('branch..other-branch')
         check_output.assert_called_once_with(
             ['git', 'rev-list', 'branch..other-branch'])
@@ -210,7 +212,9 @@ class GitTest(unittest.TestCase):
 
     @mock.patch('subprocess.check_output')
     def test_commit_diff_complicated_diff(self, check_output):
-        check_output.return_value = os.linesep.join(['abc123', '123abc'])
+        check_output.return_value = os.linesep.join(
+            ['abc123', '123abc']
+        ).encode('utf-8')
         resp = git.commit_diff('branch ^other-branch')
         check_output.assert_called_once_with(
             ['git', 'rev-list', 'branch', '^other-branch'])
