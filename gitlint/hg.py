@@ -42,6 +42,7 @@ def last_commit():
         return None
 
 
+# pylint: disable=unused-argument
 def modified_files(root, tracked_only=False, commit=None, git_diff=None):
     """Returns a list of files that has been modified since the last commit.
 
@@ -50,6 +51,7 @@ def modified_files(root, tracked_only=False, commit=None, git_diff=None):
       tracked_only: exclude untracked files when True.
       commit: SHA1 of the commit. If None, it will get the modified files in the
         working copy.
+      git_diff: Unused.  Necessary for vcs compatibility
 
     Returns: a dictionary with the modified files as keys, and additional
       information as value. In this case it adds the status returned by

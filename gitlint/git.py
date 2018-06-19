@@ -58,6 +58,7 @@ def modified_files(root, tracked_only=False, commit=None, git_diff=None):
       tracked_only: exclude untracked files when True.
       commit: SHA1 of the commit. If None, it will get the modified files in the
         working copy.
+      git_diff: A git style diff.  Like dev..master, 1b2ec4..123bade, dev ^master
 
     Returns: a dictionary with the modified files as keys, and additional
       information as value. In this case it adds the status returned by
@@ -146,6 +147,13 @@ def modified_lines(filename, extra_data, commits=None):
 
 
 def commit_diff(git_diff):
+    """Returns a list of commits corresponding to the provided diff
+
+    Args:
+      git_diff: the git_diff like branch-a..branch-b or HEAD ^master
+
+    Returns: A list of commit shas associated with the provided diff
+    """
     command = ['git', 'rev-list']
     command.extend(git_diff.split(' '))
     return subprocess.check_output(

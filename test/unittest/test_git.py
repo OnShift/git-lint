@@ -199,3 +199,13 @@ class GitTest(unittest.TestCase):
     def test_last_commit_not_in_repo(self, check_output):
         check_output.side_effect = subprocess.CalledProcessError(255, '', '')
         self.assertEqual(None, git.last_commit())
+
+    @mock.patch('subprocess.check_output')
+    def test_commit_diff_simple_diff(self, check_output):
+        git.commit_diff('branch..other-branch')
+        check_output.assert_called_once_with(['git', 'rev-list', 'branch..other-branch'])
+
+    @mock.patch('subprocess.check_output')
+    def test_commit_diff_complicated_diff(self, check_output):
+        git.commit_diff('branch ^other-branch')
+        check_output.assert_called_once_with(['git', 'rev-list', 'branch', '^other-branch'])
