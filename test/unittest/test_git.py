@@ -200,16 +200,18 @@ class GitTest(unittest.TestCase):
         check_output.side_effect = subprocess.CalledProcessError(255, '', '')
         self.assertEqual(None, git.last_commit())
 
-    @staticmethod
     @mock.patch('subprocess.check_output')
-    def test_commit_diff_simple_diff(check_output):
-        git.commit_diff('branch..other-branch')
+    def test_commit_diff_simple_diff(self, check_output):
+        check_output.return_value = os.linesep.join(['abc123', '123abc'])
+        resp git.commit_diff('branch..other-branch')
         check_output.assert_called_once_with(
             ['git', 'rev-list', 'branch..other-branch'])
+        self.assertEqual(resp, ['abc123', '123abc'])
 
-    @staticmethod
     @mock.patch('subprocess.check_output')
-    def test_commit_diff_complicated_diff(check_output):
-        git.commit_diff('branch ^other-branch')
+    def test_commit_diff_complicated_diff(self, check_output):
+        check_output.return_value = os.linesep.join(['abc123', '123abc'])
+        resp = git.commit_diff('branch ^other-branch')
         check_output.assert_called_once_with(
             ['git', 'rev-list', 'branch', '^other-branch'])
+        self.assertEqual(resp, ['abc123', '123abc'])
