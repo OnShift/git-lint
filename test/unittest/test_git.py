@@ -203,7 +203,7 @@ class GitTest(unittest.TestCase):
     @mock.patch('subprocess.check_output')
     def test_commit_diff_simple_diff(self, check_output):
         check_output.return_value = os.linesep.join(['abc123', '123abc'])
-        resp git.commit_diff('branch..other-branch')
+        resp = git.commit_diff('branch..other-branch')
         check_output.assert_called_once_with(
             ['git', 'rev-list', 'branch..other-branch'])
         self.assertEqual(resp, ['abc123', '123abc'])
