@@ -23,7 +23,7 @@ It supports many filetypes, including:
 
 Usage:
     git-lint [-f | --force] [--json] [--last-commit] [FILENAME ...]
-    git-lint [-t | --tracked] [-f | --force] [--json] [--last-commit]
+    git-lint [-t | --tracked] [-f | --force] [--json] [(--last-commit | --diff diff)]
     git-lint -h | --version
 
 Options:
@@ -35,6 +35,9 @@ Options:
                    conjunction with other tools.
     --last-commit  Checks the last checked-out commit. This is mostly useful
                    when used as: git checkout <revid>; git lint --last-commit.
+    --diff=<diff>  Checks everything captured by the git diff option.  Not
+                   compatible with --last-diff To get commits on the current
+                   branch but not master; git lint --diff 'HEAD ^master'
 """
 
 from __future__ import unicode_literals
@@ -165,7 +168,7 @@ def get_vcs_root():
     return (None, None)
 
 
-def process_file(vcs, commit, force, gitlint_config, file_data):
+def process_file(vcs, commits, force, gitlint_config, file_data):
     """Lint the file
 
     Returns:
@@ -177,7 +180,7 @@ def process_file(vcs, commit, force, gitlint_config, file_data):
         modified_lines = None
     else:
         modified_lines = vcs.modified_lines(
-            filename, extra_data, commit=commit)
+            filename, extra_data, commits=commits)
     result = linters.lint(filename, modified_lines, gitlint_config)
     result = result[filename]
 
@@ -206,9 +209,20 @@ def main(argv, stdout=sys.stdout, stderr=sys.stderr):
         stderr.write('fatal: Not a git repository' + linesep)
         return 128
 
-    commit = None
+    commits = None
+    last_commit = None
     if arguments['--last-commit']:
-        commit = vcs.last_commit()
+        last_commit = vcs.last_commit()
+        commits = [last_commit]
+
+    if arguments['--diff'] and vcs.__name__ != 'gitlint.git':
+        stderr.write('fatal: --diff is only valid with git repositories' +
+                     linesep)
+        return 128
+
+    diff = arguments['--diff']
+    if diff:
+        commits = vcs.commit_diff(diff)
 
     if arguments['FILENAME']:
         invalid_filenames = find_invalid_filenames(arguments['FILENAME'],
@@ -222,7 +236,8 @@ def main(argv, stdout=sys.stdout, stderr=sys.stderr):
         changed_files = vcs.modified_files(
             repository_root,
             tracked_only=arguments['--tracked'],
-            commit=commit)
+            commit=last_commit,
+            diff=diff)
         modified_files = {}
         for filename in arguments['FILENAME']:
             normalized_filename = os.path.abspath(filename)
@@ -232,7 +247,8 @@ def main(argv, stdout=sys.stdout, stderr=sys.stderr):
         modified_files = vcs.modified_files(
             repository_root,
             tracked_only=arguments['--tracked'],
-            commit=commit)
+            commit=last_commit,
+            diff=diff)
 
     linter_not_found = False
     files_with_problems = 0
@@ -241,7 +257,7 @@ def main(argv, stdout=sys.stdout, stderr=sys.stderr):
 
     with futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count())\
             as executor:
-        processfile = functools.partial(process_file, vcs, commit,
+        processfile = functools.partial(process_file, vcs, commits,
                                         arguments['--force'], gitlint_config)
         for filename, result in executor.map(
                 processfile, [(filename, modified_files[filename])

@@ -128,7 +128,7 @@ class HgTest(unittest.TestCase):
                              hg.modified_lines(
                                  '/home/user/repo/foo/bar.txt',
                                  'M',
-                                 commit=commit)))
+                                 commits=[commit])))
         check_output.assert_called_once_with([
             'hg', 'diff', '-U', '0',
             '--change=%s' % commit, '/home/user/repo/foo/bar.txt'
