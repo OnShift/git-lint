@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=line-too-long
 """
 git-lint: improving source code one step at a time
 
@@ -23,7 +24,7 @@ It supports many filetypes, including:
 
 Usage:
     git-lint [-f | --force] [--json] [--last-commit] [FILENAME ...]
-    git-lint [-t | --tracked] [-f | --force] [--json] [(--last-commit | --diff diff)]
+    git-lint [-t | --tracked] [-f | --force] [--json] [(--last-commit | --diff DIFF)]
     git-lint -h | --version
 
 Options:
@@ -39,6 +40,7 @@ Options:
                    compatible with --last-diff To get commits on the current
                    branch but not master; git lint --diff 'HEAD ^master'
 """
+# pylint: enable=line-too-long
 
 from __future__ import unicode_literals
 
