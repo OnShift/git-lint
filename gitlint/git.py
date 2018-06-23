@@ -80,7 +80,8 @@ def modified_files(root, tracked_only=False, target=None):
 def _modified_files_with_target(root, target):
     # Convert to unicode and split
     status_lines = subprocess.check_output([
-        'git', 'diff-tree', '-r', '--root', '--no-commit-id', '--name-status',
+        'git', 'diff-tree', '-r', '--root',
+        '--no-commit-id', '--name-status',
         target
     ]).decode('utf-8').split(os.linesep)
 
