@@ -55,7 +55,7 @@ def modified_files(root, tracked_only=False, target=None):
     assert os.path.isabs(root), "Root has to be absolute, got: %s" % root
 
     if target:
-        return _modified_files_with_diff_target(root, target)
+        return _modified_files_with_target(root, target)
 
     # Convert to unicode and split
     status_lines = subprocess.check_output([
@@ -77,7 +77,7 @@ def modified_files(root, tracked_only=False, target=None):
                 for filename, mode in modified_file_status)
 
 
-def _modified_files_with_diff_target(root, target):
+def _modified_files_with_target(root, target):
     # Convert to unicode and split
     status_lines = subprocess.check_output([
         'git', 'diff-tree', '-r', '--root', '--no-commit-id', '--name-status',

@@ -93,10 +93,11 @@ class E2EMixin(object):
         self.assertIn('SKIPPED', output)
         self.assertIn(extension, output)
 
-    def _get_original_error_and_no_error(self, linter_name, extension):
+    def get_filenames(self, linter_name, extension):
+        """Get the common file names to be checked by the linter"""
         data_dirname = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), 'data')
-        self.filename_repo = filename_repo = os.path.join(
+        filename_repo = os.path.join(
             self.temp_directory, '%s%s' % (linter_name, extension))
         filename_original = os.path.join(data_dirname, linter_name,
                                          'original%s' % extension)
@@ -104,7 +105,12 @@ class E2EMixin(object):
                                       'error%s' % extension)
         filename_nonewerror = os.path.join(data_dirname, linter_name,
                                            'nonewerror%s' % extension)
-        return filename_original, filename_error, filename_nonewerror
+        return (
+            filename_original,
+            filename_error,
+            filename_nonewerror,
+            filename_repo
+        )
 
     # TODO(skreft): check that the first file has more than 1 error, check that
     # the second file has 1 new error, check also the lines that changed.
@@ -117,9 +123,12 @@ class E2EMixin(object):
         - <linter>/nonewerror.<extension>: A line was modified/added from the
           last file, but no new errors are introduced.
         """
-        filename_original, filename_error, filename_nonewerror = self._get_original_error_and_no_error(
+        filenames = self.get_filenames(
             linter_name, extension)
-        filename_repo = self.filename_repo
+        filename_original = filenames[0]
+        filename_error = filenames[1]
+        filename_nonewerror = filenames[2]
+        self.file_name_repo = filename_repo = filenames[3]
 
         self.assertTrue(
             os.path.exists(filename_original),
@@ -262,7 +271,7 @@ class TestGitE2E(E2EMixin, unittest.TestCase):
             os.chdir(repo_dir)
             self.init_repo()
 
-            filename_original, filename_error, filename_nonewerror = self._get_original_error_and_no_error(
+            _, filename_error, filename_nonewerror, _ = self.get_filenames(
                 'pycodestyle', '.py')
             repo_filename_first = os.path.join(repo_dir, 'first.py')
             shutil.copy(filename_error, repo_filename_first)
