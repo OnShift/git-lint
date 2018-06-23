@@ -97,20 +97,16 @@ class E2EMixin(object):
         """Get the common file names to be checked by the linter"""
         data_dirname = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), 'data')
-        filename_repo = os.path.join(
-            self.temp_directory, '%s%s' % (linter_name, extension))
+        filename_repo = os.path.join(self.temp_directory,
+                                     '%s%s' % (linter_name, extension))
         filename_original = os.path.join(data_dirname, linter_name,
                                          'original%s' % extension)
         filename_error = os.path.join(data_dirname, linter_name,
                                       'error%s' % extension)
         filename_nonewerror = os.path.join(data_dirname, linter_name,
                                            'nonewerror%s' % extension)
-        return (
-            filename_original,
-            filename_error,
-            filename_nonewerror,
-            filename_repo
-        )
+        return (filename_original, filename_error, filename_nonewerror,
+                filename_repo)
 
     # TODO(skreft): check that the first file has more than 1 error, check that
     # the second file has 1 new error, check also the lines that changed.
@@ -123,8 +119,7 @@ class E2EMixin(object):
         - <linter>/nonewerror.<extension>: A line was modified/added from the
           last file, but no new errors are introduced.
         """
-        filenames = self.get_filenames(
-            linter_name, extension)
+        filenames = self.get_filenames(linter_name, extension)
         filename_original = filenames[0]
         filename_error = filenames[1]
         filename_nonewerror = filenames[2]
