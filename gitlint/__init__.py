@@ -34,11 +34,11 @@ Options:
     -t --tracked   Lints only tracked files.
     --json         Prints the result as a json string. Useful to use it in
                    conjunction with other tools.
-    --last-commit  Checks the last checked-out commit. This is mostly useful
-                   when used as: git checkout <revid>; git lint --last-commit.
-    --diff=<diff>  Checks everything captured by the git diff option.  Not
-                   compatible with --last-diff To get commits on the current
-                   branch but not master; git lint --diff 'HEAD ^master'
+    --last-commit  Checks the last checked-out commit. Equivalent to --diff HEAD^
+                   This is mostly useful when used as:
+                   git checkout <revid>; git lint --last-commit.
+    --diff=<diff>  Gets the difference between the current HEAD and the commit
+                   or branch specified
 """
 
 from __future__ import unicode_literals
@@ -169,7 +169,7 @@ def get_vcs_root():
     return (None, None)
 
 
-def process_file(vcs, commits, force, gitlint_config, file_data):
+def process_file(vcs, target, force, gitlint_config, file_data):
     """Lint the file
 
     Returns:
@@ -181,7 +181,7 @@ def process_file(vcs, commits, force, gitlint_config, file_data):
         modified_lines = None
     else:
         modified_lines = vcs.modified_lines(
-            filename, extra_data, commits=commits)
+            filename, extra_data, target=target)
     result = linters.lint(filename, modified_lines, gitlint_config)
     result = result[filename]
 
@@ -210,20 +210,15 @@ def main(argv, stdout=sys.stdout, stderr=sys.stderr):
         stderr.write('fatal: Not a git repository' + linesep)
         return 128
 
-    commits = None
-    last_commit = None
-    if arguments['--last-commit']:
-        last_commit = vcs.last_commit()
-        commits = [last_commit]
-
-    if arguments['--diff'] and vcs.__name__ != 'gitlint.git':
+    diff = arguments['--diff']
+    if diff and vcs is not git:
         stderr.write('fatal: --diff is only valid with git repositories' +
                      linesep)
         return 128
 
-    diff = arguments['--diff']
-    if diff:
-        commits = vcs.commit_diff(diff)
+    target = None
+    if arguments['--last-commit'] or diff:
+        target = vcs.diff_target(diff=diff)
 
     if arguments['FILENAME']:
         invalid_filenames = find_invalid_filenames(arguments['FILENAME'],
@@ -237,8 +232,7 @@ def main(argv, stdout=sys.stdout, stderr=sys.stderr):
         changed_files = vcs.modified_files(
             repository_root,
             tracked_only=arguments['--tracked'],
-            commit=last_commit,
-            diff=diff)
+            target=target)
         modified_files = {}
         for filename in arguments['FILENAME']:
             normalized_filename = os.path.abspath(filename)
@@ -248,8 +242,7 @@ def main(argv, stdout=sys.stdout, stderr=sys.stderr):
         modified_files = vcs.modified_files(
             repository_root,
             tracked_only=arguments['--tracked'],
-            commit=last_commit,
-            diff=diff)
+            target=target)
 
     linter_not_found = False
     files_with_problems = 0
@@ -258,7 +251,7 @@ def main(argv, stdout=sys.stdout, stderr=sys.stderr):
 
     with futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count())\
             as executor:
-        processfile = functools.partial(process_file, vcs, commits,
+        processfile = functools.partial(process_file, vcs, target,
                                         arguments['--force'], gitlint_config)
         for filename, result in executor.map(
                 processfile, [(filename, modified_files[filename])

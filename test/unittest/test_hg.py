@@ -81,7 +81,7 @@ class HgTest(unittest.TestCase):
             '/home/user/repo/docs/file1.txt': 'A',
             '/home/user/repo/data/file2.json': 'M',
             '/home/user/repo/untracked.txt': '?'
-        }, hg.modified_files('/home/user/repo', commit=commit))
+        }, hg.modified_files('/home/user/repo', target=commit))
         check_output.assert_called_once_with(
             ['hg', 'status', '--change=%s' % commit])
 
@@ -128,7 +128,7 @@ class HgTest(unittest.TestCase):
                              hg.modified_lines(
                                  '/home/user/repo/foo/bar.txt',
                                  'M',
-                                 commits=[commit])))
+                                 target=commit)))
         check_output.assert_called_once_with([
             'hg', 'diff', '-U', '0',
             '--change=%s' % commit, '/home/user/repo/foo/bar.txt'
@@ -149,12 +149,12 @@ class HgTest(unittest.TestCase):
                                                None)))
 
     @mock.patch('subprocess.check_output', return_value=b'0a' * 20 + b'\n')
-    def test_last_commit(self, check_output):
-        self.assertEqual('0a' * 20, hg.last_commit())
+    def test_diff_target(self, check_output):
+        self.assertEqual('0a' * 20, hg.diff_target())
         check_output.assert_called_once_with(
             ['hg', 'parent', '--template={node}'], stderr=subprocess.STDOUT)
 
     @mock.patch('subprocess.check_output')
-    def test_last_commit_not_in_repo(self, check_output):
+    def test_diff_target_not_in_repo(self, check_output):
         check_output.side_effect = subprocess.CalledProcessError(255, '', '')
-        self.assertEqual(None, hg.last_commit())
+        self.assertEqual(None, hg.diff_target())

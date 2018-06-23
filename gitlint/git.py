@@ -14,6 +14,7 @@
 """Functions to get information from git."""
 
 import os.path
+import re
 import subprocess
 
 import gitlint.utils as utils
@@ -31,17 +32,6 @@ def repository_root():
         return None
 
 
-def last_commit():
-    """Returns the SHA1 of the last commit."""
-    try:
-        root = subprocess.check_output(
-            ['git', 'rev-parse', 'HEAD'], stderr=subprocess.STDOUT).strip()
-        # Convert to unicode first
-        return root.decode('utf-8')
-    except subprocess.CalledProcessError:
-        return None
-
-
 def _remove_filename_quotes(filename):
     """Removes the quotes from a filename returned by git status."""
     if filename.startswith('"') and filename.endswith('"'):
@@ -50,15 +40,13 @@ def _remove_filename_quotes(filename):
     return filename
 
 
-def modified_files(root, tracked_only=False, commit=None, diff=None):
+def modified_files(root, tracked_only=False, target=None):
     """Returns a list of files that has been modified since the last commit.
 
     Args:
       root: the root of the repository, it has to be an absolute path.
       tracked_only: exclude untracked files when True.
-      commit: SHA1 of the commit. If None, it will get the modified files in the
-        working copy.
-      diff: A git style diff.  Like dev..master, 1b2ec4..123bade, dev ^master
+      target: The changes to target, e.g. 'master..HEAD'
 
     Returns: a dictionary with the modified files as keys, and additional
       information as value. In this case it adds the status returned by
@@ -66,11 +54,8 @@ def modified_files(root, tracked_only=False, commit=None, diff=None):
     """
     assert os.path.isabs(root), "Root has to be absolute, got: %s" % root
 
-    if commit:
-        return _modified_files_with_commit(root, commit)
-
-    if diff:
-        return _modified_files_with_commit(root, diff)
+    if target:
+        return _modified_files_with_diff_target(root, target)
 
     # Convert to unicode and split
     status_lines = subprocess.check_output([
@@ -92,14 +77,12 @@ def modified_files(root, tracked_only=False, commit=None, diff=None):
                 for filename, mode in modified_file_status)
 
 
-def _modified_files_with_commit(root, diff_target):
+def _modified_files_with_diff_target(root, target):
     # Convert to unicode and split
-    command = [
-        'git', 'diff-tree', '-r', '--root', '--no-commit-id', '--name-status'
-    ]
-    command.extend(diff_target.split(' '))
-    status_lines = subprocess.check_output(command).decode('utf-8').split(
-        os.linesep)
+    status_lines = subprocess.check_output([
+        'git', 'diff-tree', '-r', '--root', '--no-commit-id', '--name-status',
+        target
+    ]).decode('utf-8').split(os.linesep)
 
     modified_file_status = utils.filter_lines(
         status_lines,
@@ -112,17 +95,16 @@ def _modified_files_with_commit(root, diff_target):
                  mode + ' ') for filename, mode in modified_file_status)
 
 
-def modified_lines(filename, extra_data, commits=None):
+def modified_lines(filename, extra_data, target=None):
     """Returns the lines that have been modifed for this file.
 
     Args:
       filename: the file to check.
       extra_data: is the extra_data returned by modified_files. Additionally, a
         value of None means that the file was not modified.
-      commits: the complete sha1 (40 chars) of the commit. Note that specifying
-        this value will only work (100%) when commit == last_commit (with
-        respect to the currently checked out revision), otherwise, we could miss
-        some lines.
+      target: The diff target to check for modified lines.  For example,
+        diff='master..HEAD' will check for all modified lines from master
+        to the current HEAD
 
     Returns: a list of lines that were modified, or None in case all lines are
       new.
@@ -132,30 +114,36 @@ def modified_lines(filename, extra_data, commits=None):
     if extra_data not in ('M ', ' M', 'MM'):
         return None
 
-    if commits is None:
-        commits = ['0' * 40]
-    # commit = commit.encode('utf-8')
+    commits = ['0' * 40]
+    if target:
+        commits = _target_commits(target)
 
     # Split as bytes, as the output may have some non unicode characters.
     blame_lines = subprocess.check_output(
         ['git', 'blame', '--porcelain', filename]).split(
             os.linesep.encode('utf-8'))
+    commit_or_regex = '|'.join(re.escape(commit) for commit in commits)
     regex_pattern = r'^({}) (?P<line>\d+) (\d+)'.format(
-        '|'.join(commits)).encode('utf-8')
+        commit_or_regex).encode('utf-8')
     modified_line_numbers = utils.filter_lines(
         blame_lines, regex_pattern, groups=('line', ))
 
     return list(map(int, modified_line_numbers))
 
 
-def commit_diff(diff):
-    """Returns a list of commits corresponding to the provided diff
+def _target_commits(target):
+    return subprocess.check_output(['git', 'rev-list',
+                                    target]).decode('utf-8').split(os.linesep)
+
+
+def diff_target(diff):
+    """Build the git difference string
 
     Args:
-      diff: the diff like branch-a..branch-b or HEAD ^master
+      diff: The commit or branch target to compare against
+        defaults to "HEAD^"
 
-    Returns: A list of commit shas associated with the provided diff
+    Returns: A string representing the git difference.
     """
-    command = ['git', 'rev-list']
-    command.extend(diff.split(' '))
-    return subprocess.check_output(command).decode('utf-8').split(os.linesep)
+    diff = diff or 'HEAD^'
+    return '{}..HEAD'.format(diff)

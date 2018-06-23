@@ -100,36 +100,16 @@ class GitTest(unittest.TestCase):
             'A\ttest/e2etest/data/rubylint/error.rb',
             '',
         ]).encode('utf-8')
-        commit = '0a' * 20
+        commit = 'HEAD^..HEAD'
 
         self.assertEqual(
             {
                 '/home/user/repo/test/e2etest/data/bash/error.sh': 'M ',
                 '/home/user/repo/test/e2etest/data/rubylint/error.rb': 'A ',
-            }, git.modified_files('/home/user/repo', commit=commit))
+            }, git.modified_files('/home/user/repo', target=commit))
         check_output.assert_called_once_with([
             'git', 'diff-tree', '-r', '--root', '--no-commit-id',
             '--name-status', commit
-        ])
-
-    @mock.patch('subprocess.check_output')
-    def test_modified_files_with_diff(self, check_output):
-        check_output.return_value = os.linesep.join([
-            'M\ttest/e2etest/data/bash/error.sh',
-            'D\ttest/e2etest/data/ruby/error.rb',
-            'A\ttest/e2etest/data/rubylint/error.rb',
-            '',
-        ]).encode('utf-8')
-        commit = 'branch-a ^branch-b'
-
-        self.assertEqual(
-            {
-                '/home/user/repo/test/e2etest/data/bash/error.sh': 'M ',
-                '/home/user/repo/test/e2etest/data/rubylint/error.rb': 'A ',
-            }, git.modified_files('/home/user/repo', commit=commit))
-        check_output.assert_called_once_with([
-            'git', 'diff-tree', '-r', '--root', '--no-commit-id',
-            '--name-status', 'branch-a', '^branch-b'
         ])
 
     def test_modified_files_non_absolute_root(self):
@@ -161,34 +141,35 @@ class GitTest(unittest.TestCase):
         ] * 3
         self.assertEqual(expected_calls, check_output.call_args_list)
 
+    @mock.patch('gitlint.git._target_commits')
     @mock.patch('subprocess.check_output')
-    def test_modified_lines_with_commit(self, check_output):
+    def test_modified_lines_with_commit(self, check_output, target_commits):
         check_output.return_value = os.linesep.join([
             'baz', '0123456789abcdef31410123456789abcdef3141 2 2 4', 'foo',
             '0123456789abcdef31410123456789abcdef3141 5 5', 'bar'
         ]).encode('utf-8')
+        target_commits.return_value = [
+            '0123456789abcdef31410123456789abcdef3141'
+        ]
 
-        self.assertEqual(
-            [2, 5],
-            list(
-                git.modified_lines(
-                    '/home/user/repo/foo/bar.txt',
-                    ' M',
-                    commits=['0123456789abcdef31410123456789abcdef3141'])))
-        self.assertEqual(
-            [2, 5],
-            list(
-                git.modified_lines(
-                    '/home/user/repo/foo/bar.txt',
-                    'M ',
-                    commits=['0123456789abcdef31410123456789abcdef3141'])))
-        self.assertEqual(
-            [2, 5],
-            list(
-                git.modified_lines(
-                    '/home/user/repo/foo/bar.txt',
-                    'MM',
-                    commits=['0123456789abcdef31410123456789abcdef3141'])))
+        self.assertEqual([2, 5],
+                         list(
+                             git.modified_lines(
+                                 '/home/user/repo/foo/bar.txt',
+                                 ' M',
+                                 target='HEAD^..HEAD')))
+        self.assertEqual([2, 5],
+                         list(
+                             git.modified_lines(
+                                 '/home/user/repo/foo/bar.txt',
+                                 'M ',
+                                 target='HEAD^..HEAD')))
+        self.assertEqual([2, 5],
+                         list(
+                             git.modified_lines(
+                                 '/home/user/repo/foo/bar.txt',
+                                 'MM',
+                                 target='HEAD^..HEAD')))
         expected_calls = [
             mock.call(
                 ['git', 'blame', '--porcelain', '/home/user/repo/foo/bar.txt'])
@@ -209,31 +190,8 @@ class GitTest(unittest.TestCase):
                              git.modified_lines('/home/user/repo/foo/bar.txt',
                                                 None)))
 
-    @mock.patch('subprocess.check_output', return_value=b'0a' * 20 + b'\n')
-    def test_last_commit(self, check_output):
-        self.assertEqual('0a' * 20, git.last_commit())
-        check_output.assert_called_once_with(
-            ['git', 'rev-parse', 'HEAD'], stderr=subprocess.STDOUT)
+    def test_diff_target_no_diff(self):
+        self.assertEqual('HEAD^..HEAD', git.diff_target(None))
 
-    @mock.patch('subprocess.check_output')
-    def test_last_commit_not_in_repo(self, check_output):
-        check_output.side_effect = subprocess.CalledProcessError(255, '', '')
-        self.assertEqual(None, git.last_commit())
-
-    @mock.patch('subprocess.check_output')
-    def test_commit_diff_simple_diff(self, check_output):
-        check_output.return_value = os.linesep.join(['abc123',
-                                                     '123abc']).encode('utf-8')
-        resp = git.commit_diff('branch..other-branch')
-        check_output.assert_called_once_with(
-            ['git', 'rev-list', 'branch..other-branch'])
-        self.assertEqual(resp, ['abc123', '123abc'])
-
-    @mock.patch('subprocess.check_output')
-    def test_commit_diff_complicated_diff(self, check_output):
-        check_output.return_value = os.linesep.join(['abc123',
-                                                     '123abc']).encode('utf-8')
-        resp = git.commit_diff('branch ^other-branch')
-        check_output.assert_called_once_with(
-            ['git', 'rev-list', 'branch', '^other-branch'])
-        self.assertEqual(resp, ['abc123', '123abc'])
+    def test_diff_target_with_diff(self):
+        self.assertEqual('master..HEAD', git.diff_target('master'))

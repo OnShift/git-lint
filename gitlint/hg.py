@@ -30,7 +30,7 @@ def repository_root():
         return None
 
 
-def last_commit():
+def diff_target():
     """Returns the SHA1 of the last commit."""
     try:
         root = subprocess.check_output(
@@ -43,13 +43,13 @@ def last_commit():
 
 
 # pylint: disable=unused-argument
-def modified_files(root, tracked_only=False, commit=None, diff=None):
+def modified_files(root, tracked_only=False, target=None):
     """Returns a list of files that has been modified since the last commit.
 
     Args:
       root: the root of the repository, it has to be an absolute path.
       tracked_only: exclude untracked files when True.
-      commit: SHA1 of the commit. If None, it will get the modified files in the
+      target: SHA1 of the commit. If None, it will get the modified files in the
         working copy.
       diff: Unused.  Necessary for vcs compatibility
 
@@ -60,8 +60,8 @@ def modified_files(root, tracked_only=False, commit=None, diff=None):
     assert os.path.isabs(root), "Root has to be absolute, got: %s" % root
 
     command = ['hg', 'status']
-    if commit:
-        command.append('--change=%s' % commit)
+    if target:
+        command.append('--change=%s' % target)
 
     # Convert to unicode and split
     status_lines = subprocess.check_output(command).decode('utf-8').split(
@@ -84,14 +84,14 @@ def modified_files(root, tracked_only=False, commit=None, diff=None):
 # pylint: enable=unused-argument
 
 
-def modified_lines(filename, extra_data, commits=None):
+def modified_lines(filename, extra_data, target=None):
     """Returns the lines that have been modifed for this file.
 
     Args:
       filename: the file to check.
       extra_data: is the extra_data returned by modified_files. Additionally, a
         value of None means that the file was not modified.
-      commits: the complete sha1 (40 chars) of the commit. Note that specifying
+      target: the complete sha1 (40 chars) of the commit. Note that specifying
         this value will only work (100%) when commit == last_commit (with
         respect to the currently checked out revision), otherwise, we could miss
         some lines.
@@ -105,11 +105,8 @@ def modified_lines(filename, extra_data, commits=None):
         return None
 
     command = ['hg', 'diff', '-U', '0']
-    if commits:
-        assert len(commits) == 1, \
-            "git-lint does not support multiple commits for mercurial yet"
-
-        command.append('--change=%s' % commits[0])
+    if target:
+        command.append('--change=%s' % target)
     command.append(filename)
 
     # Split as bytes, as the output may have some non unicode characters.

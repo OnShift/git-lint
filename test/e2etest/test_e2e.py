@@ -47,10 +47,11 @@ class E2EMixin(object):
     """
 
     @staticmethod
-    def lint():
+    def lint(args=None):
         """Returns the response and ouput of git-lint."""
+        args = args or []
         out = io.StringIO()
-        response = gitlint.main([], stdout=out, stderr=out)
+        response = gitlint.main(args, stdout=out, stderr=out)
 
         return response, out.getvalue()
 
@@ -92,6 +93,19 @@ class E2EMixin(object):
         self.assertIn('SKIPPED', output)
         self.assertIn(extension, output)
 
+    def _get_original_error_and_no_error(self, linter_name, extension):
+        data_dirname = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), 'data')
+        self.filename_repo = filename_repo = os.path.join(
+            self.temp_directory, '%s%s' % (linter_name, extension))
+        filename_original = os.path.join(data_dirname, linter_name,
+                                         'original%s' % extension)
+        filename_error = os.path.join(data_dirname, linter_name,
+                                      'error%s' % extension)
+        filename_nonewerror = os.path.join(data_dirname, linter_name,
+                                           'nonewerror%s' % extension)
+        return filename_original, filename_error, filename_nonewerror
+
     # TODO(skreft): check that the first file has more than 1 error, check that
     # the second file has 1 new error, check also the lines that changed.
     def assert_linter_works(self, linter_name, extension):
@@ -103,16 +117,9 @@ class E2EMixin(object):
         - <linter>/nonewerror.<extension>: A line was modified/added from the
           last file, but no new errors are introduced.
         """
-        data_dirname = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), 'data')
-        self.filename_repo = filename_repo = os.path.join(
-            self.temp_directory, '%s%s' % (linter_name, extension))
-        filename_original = os.path.join(data_dirname, linter_name,
-                                         'original%s' % extension)
-        filename_error = os.path.join(data_dirname, linter_name,
-                                      'error%s' % extension)
-        filename_nonewerror = os.path.join(data_dirname, linter_name,
-                                           'nonewerror%s' % extension)
+        filename_original, filename_error, filename_nonewerror = self._get_original_error_and_no_error(
+            linter_name, extension)
+        filename_repo = self.filename_repo
 
         self.assertTrue(
             os.path.exists(filename_original),
@@ -238,6 +245,61 @@ class TestGitE2E(E2EMixin, unittest.TestCase):
             os.chdir(original_cwd)
             if submodule_dir:
                 shutil.rmtree(submodule_dir)
+            if repo_dir:
+                shutil.rmtree(repo_dir)
+
+    def test_with_diff(self):
+        """Ensures that the diff command gets errors not on target
+
+        Creates the same file 3 times in 3 different commits.  The first
+        one is on the master branch, the next two are in two commits
+        on the new branch.  Finally, overwrites the first commit with
+        no new errors.
+        """
+        original_cwd = os.getcwd()
+        try:
+            repo_dir = tempfile.mkdtemp(prefix='gitlint')
+            os.chdir(repo_dir)
+            self.init_repo()
+
+            filename_original, filename_error, filename_nonewerror = self._get_original_error_and_no_error(
+                'pycodestyle', '.py')
+            repo_filename_first = os.path.join(repo_dir, 'first.py')
+            shutil.copy(filename_error, repo_filename_first)
+            self.add(repo_filename_first)
+            self.commit('first commit')
+
+            execute(['git', 'checkout', '-b', 'new-branch'])
+
+            repo_filename_error = os.path.join(repo_dir, 'new_error.py')
+            shutil.copy(filename_error, repo_filename_error)
+            self.add(repo_filename_error)
+            self.commit('has an error')
+
+            repo_filename_second_error = os.path.join(repo_dir,
+                                                      'second_error.py')
+            shutil.copy(filename_error, repo_filename_second_error)
+            self.add(repo_filename_second_error)
+            self.commit('another error')
+
+            shutil.copy(filename_nonewerror, repo_filename_first)
+            self.add(repo_filename_first)
+            self.commit('no new errors')
+
+            error, output = self.lint(args=['git-lint', '--diff', 'master'])
+            # Ensure errors from commits on new branch but not master branch
+            self.assertEqual(error, 1)
+            # Original file passes
+            self.assertIn(
+                'Linting file: [1mfirst.py\x1b[0m\n\x1b[1m[32mOK[0m',
+                output)
+            # new files fail
+            self.assertIn('Linting file: \x1b[1mnew_error.py\x1b[0m\nline 1',
+                          output)
+            self.assertIn(
+                'Linting file: \x1b[1msecond_error.py\x1b[0m\nline 1', output)
+        finally:
+            os.chdir(original_cwd)
             if repo_dir:
                 shutil.rmtree(repo_dir)
 
