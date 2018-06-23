@@ -99,6 +99,7 @@ def modified_lines(filename, extra_data, target=None):
     Returns: a list of lines that were modified, or None in case all lines are
       new.
     """
+    unused_variable = None
     if extra_data is None:
         return []
     if extra_data != 'M':
