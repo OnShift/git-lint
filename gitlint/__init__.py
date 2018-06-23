@@ -35,7 +35,7 @@ Options:
     --json         Prints the result as a json string. Useful to use it in
                    conjunction with other tools.
     --last-commit  Checks the last checked-out commit. Equivalent to
-                   --diff HEAD^ This is mostly useful when used as:
+                   "--diff HEAD^" This is mostly useful when used as:
                    git checkout <revid>; git lint --last-commit.
     --diff=<diff>  Gets the difference between the current HEAD and the commit
                    or branch specified
