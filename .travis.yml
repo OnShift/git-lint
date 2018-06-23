@@ -21,9 +21,6 @@ before_script:
 script:
   - env | grep TRAVIS
   - nosetests
-  - >
-    yapf --parallel --recursive --diff . ||
-    ( ! echo "Run yapf before committing (yapf -pri .)" )
   - git lint --diff origin/more-powerful-lint-diff
 after_success:
   coveralls
